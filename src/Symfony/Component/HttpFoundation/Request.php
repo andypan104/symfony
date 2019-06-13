@@ -1851,28 +1851,35 @@ class Request
      */
     protected function preparePathInfo()
     {
+        if ($pathInfo = $this->server->get('PATH_INFO')) {
+            return $pathInfo;
+        }
         if (null === ($requestUri = $this->getRequestUri())) {
             return '/';
         }
-
         // Remove the query string from REQUEST_URI
-        if (false !== $pos = strpos($requestUri, '?')) {
+        if ($pos = strpos($requestUri, '?')) {
             $requestUri = substr($requestUri, 0, $pos);
         }
-        if ('' !== $requestUri && '/' !== $requestUri[0]) {
-            $requestUri = '/'.$requestUri;
-        }
-
         if (null === ($baseUrl = $this->getBaseUrl())) {
             return $requestUri;
         }
-
-        $pathInfo = substr($requestUri, \strlen($baseUrl));
+        $pathInfo = $requestUri;
+        $baseLength = strlen($baseUrl);
+        // Backtrack the path to handle potential rewrites
+        for ($i = 0; false !== $i; $i = strpos($baseUrl, '/', $i + 1)) {
+            if (substr($requestUri, 0, $baseLength - $i) === substr($baseUrl, $i)) {
+                $pathInfo = substr($requestUri, $baseLength - $i);
+                break;
+            }
+            if ($baseLength === $i) {
+                break;
+            }
+        }
         if (false === $pathInfo || '' === $pathInfo) {
             // If substr() returns false then PATH_INFO is set to an empty string
             return '/';
         }
-
         return (string) $pathInfo;
     }
 
